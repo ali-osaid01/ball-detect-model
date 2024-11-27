@@ -14,13 +14,17 @@ CLIENT = InferenceHTTPClient(
 @app.get("/")
 async def root():
     return JSONResponse({"message":"Welcome to Toucher App -> AI Model YOLO"})
-
+    
 @app.post("/detect-balls")
 async def detect_balls(file: UploadFile = File(...)):
     image_data = await file.read()
     np_img = np.frombuffer(image_data, np.uint8)
     img = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
 
+    # Extract the dimensions of the image
+    height, width, _ = img.shape
+
+    # Perform inference
     result = CLIENT.infer(img, model_id="tennis-ball-detection-owaqx/2")
 
     detections = result.get('predictions', [])
@@ -29,15 +33,20 @@ async def detect_balls(file: UploadFile = File(...)):
     for detection in detections:
         x = detection['x']  
         y = detection['y']  
-        width = detection['width']
-        height = detection['height']
+        width_box = detection['width']
+        height_box = detection['height']
 
         balls_coordinates.append({
             "label": detection.get('label', 'ball'),
             "x": x,
             "y": y,
-            "width": width,
-            "height": height
+            "width": width_box,
+            "height": height_box,
         })
 
-    return JSONResponse(content={"balls_detected": balls_coordinates})
+    # Return detections along with image dimensions
+    return JSONResponse(content={
+        "image_width": width,
+        "image_height": height,
+        "balls_detected": balls_coordinates
+    })
